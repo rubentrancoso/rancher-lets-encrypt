@@ -296,6 +296,17 @@ class RancherService:
             result += "-d " + sub_domain + "." + domain + " "
         return result
 
+    def get_domains_list(self):
+        result = []
+        servers = self.parse_servernames()
+        for server in servers:
+            domain = self.get_domain(server)
+            result.append(domain)
+            sub_domains = self.get_subdomains(server)
+            for sub_domain in sub_domains:
+                result.append(sub_domain + "." + domain)
+        return result
+
     def create_cert(self, server):
         # squeeze domains_parameters after "--text" element
         domains_parameters = self.get_domains_string(server).split(' ')
@@ -508,7 +519,7 @@ class RancherService:
             print "INFO: Sleeping during host lookups for {0} seconds".format(HOST_CHECK_LOOP_TIME)
             time.sleep(HOST_CHECK_LOOP_TIME)
             # make sure all hostnames can be resolved and are listening on open ports
-            for host in self.parse_servernames():
+            for host in self.get_domains_list():
                 if(self.hostname_resolves(host)):
                     print "INFO: Hostname: {0} resolves".format(host)
                     if(self.port_open(host, HOST_CHECK_PORT)):
