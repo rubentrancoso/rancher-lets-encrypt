@@ -2,6 +2,10 @@
 
 # This python service is reponsible for managing lets encrypt certificates.
 
+# changes will be made to suport domains with multiple subdomains
+# doteva.com:[api|blog|proxmox|rancher|registry|router|shell]
+# lindyhopcentral.com:[api|mail]
+
 import time
 import socket
 from datetime import datetime

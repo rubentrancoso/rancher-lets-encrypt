@@ -1,3 +1,12 @@
+# UNDER DEVELOPMENT
+
+changes will be made to suport domains with multiple subdomains
+
+eg.:
+- doteva.com:[api|blog|proxmox|rancher|registry|router|shell]
+- lindyhopcentral.com:[api|mail]
+
+
 # Rancher Let's Encrypt Service
 
 ## Let's Encrypt verification
