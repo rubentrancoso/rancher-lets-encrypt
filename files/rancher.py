@@ -208,7 +208,7 @@ class RancherService:
         self.create_cert(server)
 
     def get_domain(self,server):
-        return server.split(':')[:1]
+        return server.split(':')[:1][0]
 
     def check_cert_files_exist(self, server):
         '''
@@ -285,7 +285,7 @@ class RancherService:
                 self.post_cert(server)
 
     def get_subdomains(self,server):
-        return server.split(':')[1:][1:-1].split('|')
+        return server.split(':')[1:][0][1:-1].split('|')
 
     def get_domains_string(self,server):
         result = ''
@@ -298,11 +298,11 @@ class RancherService:
 
     def get_domains_list(self):
         result = []
-        servers = self.parse_servernames()
+        servers = parse_servernames()
         for server in servers:
-            domain = self.get_domain(server)
+            domain = get_domain(server)
             result.append(domain)
-            sub_domains = self.get_subdomains(server)
+            sub_domains = get_subdomains(server)
             for sub_domain in sub_domains:
                 result.append(sub_domain + "." + domain)
         return result
