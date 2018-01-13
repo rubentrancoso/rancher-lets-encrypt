@@ -214,7 +214,7 @@ class RancherService:
         '''
         check if certs files already exist on disk. If they are on disk and not in rancher, publish them in rancher.
         '''
-        domain = get_domain(server)
+        domain = self.get_domain(server)
         cert_dir = '{0}/live/{1}/'.format(LETSENCRYPT_ROOTDIR, domain)
         cert = '{0}/cert.pem'.format(cert_dir)
         privkey = '{0}/privkey.pem'.format(cert_dir)
@@ -298,11 +298,11 @@ class RancherService:
 
     def get_domains_list(self):
         result = []
-        servers = parse_servernames()
+        servers = self.parse_servernames()
         for server in servers:
-            domain = get_domain(server)
+            domain = self.get_domain(server)
             result.append(domain)
-            sub_domains = get_subdomains(server)
+            sub_domains = self.get_subdomains(server)
             for sub_domain in sub_domains:
                 result.append(sub_domain + "." + domain)
         return result
