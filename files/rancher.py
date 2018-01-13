@@ -489,7 +489,7 @@ class RancherService:
         return DOMAINS.split(',')
 
     def get_rancher_certificate_servers(self):
-        '''
+        ''' 
         Retrieve a list of CN's of certificates in the Rancher UI.
         '''
         returned_json = self.get_certificate()
