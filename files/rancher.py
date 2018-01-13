@@ -207,14 +207,14 @@ class RancherService:
         print "INFO: Renewing certificate for {0}".format(server)
         self.create_cert(server)
 
-    def get_domain(self,server):
-        return server.split(':')[:1][0]
+    def get_domain(self,domain_element):
+        return domain_element.split(':')[:1][0]
 
-    def check_cert_files_exist(self, server):
+    def check_cert_files_exist(self, domain_element):
         '''
         check if certs files already exist on disk. If they are on disk and not in rancher, publish them in rancher.
         '''
-        domain = self.get_domain(server)
+        domain = self.get_domain(domain_element)
         cert_dir = '{0}/live/{1}/'.format(LETSENCRYPT_ROOTDIR, domain)
         cert = '{0}/cert.pem'.format(cert_dir)
         privkey = '{0}/privkey.pem'.format(cert_dir)
@@ -237,60 +237,60 @@ class RancherService:
         This is where almost all of the logic of the service is for cert issuance, renewal,
         and rancher cert management.
         '''
-        servers = self.parse_servernames()
+        domain_elements = self.parse_servernames()
         rancher_cert_servers = self.get_rancher_certificate_servers()
         issuers = self.get_issuer_for_certificates()
-        for server in servers:
-            if(self.check_cert_files_exist(server)):
+        for domain_element in domain_elements:
+            if(self.check_cert_files_exist(domain_element)):
                 # local copy of cert
-                if self.get_domain(server) not in rancher_cert_servers:
+                if self.get_domain(domain_element) not in rancher_cert_servers:
                     # cert not in rancher
-                    cert = self.read_cert(self.get_domain(server))
+                    cert = self.read_cert(self.get_domain(domain_element))
                     if(self.local_cert_expired(cert)):
                         # local copy (expired cert)
-                        self.create_cert(server)
-                        self.post_cert(server)
+                        self.create_cert(domain_element)
+                        self.post_cert(domain_element)
                     else:
                         # local copy (not expired cert)
-                        self.post_cert(server)
+                        self.post_cert(domain_element)
                 else:
                     # cert in rancher
-                    server_cert_issuer = issuers[self.get_domain(server)]['issuer']
+                    server_cert_issuer = issuers[self.get_domain(domain_element)]['issuer']
                     if("Fake" in server_cert_issuer and not STAGING):
                         # upgrade staging cert to production
-                        print "INFO: Upgrading staging cert to production for {0}".format(server)
-                        self.create_cert(server)
-                        self.post_cert(server)
+                        print "INFO: Upgrading staging cert to production for {0}".format(domain_element)
+                        self.create_cert(domain_element)
+                        self.post_cert(domain_element)
 
                     elif("X3" not in server_cert_issuer and not STAGING):
                         # we have a self-signed certificate we should replace with a prod certificate.
                         # this should only happen once on initial rancher install.
-                        print "INFO: Replacing self-signed certificate: {0}, {1} with production LE cert".format(server, server_cert_issuer)
-                        self.create_cert(server)
-                        self.post_cert(server)
+                        print "INFO: Replacing self-signed certificate: {0}, {1} with production LE cert".format(domain_element, server_cert_issuer)
+                        self.create_cert(domain_element)
+                        self.post_cert(domain_element)
 
-                    elif(self.rancher_certificate_expired(server)):
+                    elif(self.rancher_certificate_expired(domain_element)):
                         # rancher cert expired
-                        cert = self.read_cert(self.get_domain(server))
+                        cert = self.read_cert(self.get_domain(domain_element))
                         if(self.local_cert_expired(cert)):
                             # local cert expired
-                            self.create_cert(server)
-                            self.post_cert(server)
+                            self.create_cert(domain_element)
+                            self.post_cert(domain_element)
                         else:
                             # local cert not expired
-                            self.post_cert(server)
+                            self.post_cert(domain_element)
             else:
                 # no local copy of cert
-                self.create_cert(server)
-                self.post_cert(server)
+                self.create_cert(domain_element)
+                self.post_cert(domain_element)
 
     def get_subdomains(self,server):
         return server.split(':')[1:][0][1:-1].split('|')
 
-    def get_domains_string(self,server):
+    def get_domains_string(self,domain_element):
         result = ''
-        domain = self.get_domain(server)
-        sub_domains = self.get_subdomains(server)
+        domain = self.get_domain(domain_element)
+        sub_domains = self.get_subdomains(domain_element)
         result += "-d " + domain + " "
         for sub_domain in sub_domains:
             result += "-d " + sub_domain + "." + domain + " "
@@ -307,22 +307,25 @@ class RancherService:
                 result.append(sub_domain + "." + domain)
         return result
 
-    def create_cert(self, server):
+    def create_cert(self, domain_element):
         # squeeze domains_parameters after "--text" element
-        domains_parameters = self.get_domains_string(server).split(' ')
-        print "INFO: Need to create cert for {0}".format(self.get_domain(server))
+        domains_parameters = self.get_domains_string(domain_element).split(' ')
+        print "INFO: Need to create cert for {0}".format(self.get_domain(domain_element))
         # TODO this is incredibly hacky. Certbot is python code so there should be a way to do this without shelling out to the cli certbot tool. (certbot docs suck btw)
         # https://www.metachris.com/2015/12/comparison-of-10-acme-lets-encrypt-clients/#client-simp_le maybe?
         if(STAGING):
             # proc = subprocess.Popen(["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-d", server, "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default", "--staging"], stdout=subprocess.PIPE)
-            staging_args = ["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default", "--staging"]
-            staging_args[6:6] = domains_parameters
+            # staging_args = ["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default", "--staging"]
+            staging_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default", "--staging"]
+            staging_args[12:12] = domains_parameters
             proc = subprocess.Popen(staging_args, stdout=subprocess.PIPE)
         else:
             # production
             # proc = subprocess.Popen(["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-d", server, "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"], stdout=subprocess.PIPE)
-            prod_args = ["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"]
-            staging_args[6:6] = domains_parameters
+            # prod_args = ["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"]
+            # certbot certonly --non-interactive --renew-by-default --standalone --preferred-challenges tls-sni --rsa-key-size 4096 $EMAILPARAM --agree-tos $URLS
+            prod_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"]
+            staging_args[12:12] = domains_parameters
             proc = subprocess.Popen(prod_args, stdout=subprocess.PIPE)
         # wait for the process to return
         com = proc.communicate()[0]
@@ -489,7 +492,7 @@ class RancherService:
         return DOMAINS.split(',')
 
     def get_rancher_certificate_servers(self):
-        ''' 
+        '''
         Retrieve a list of CN's of certificates in the Rancher UI.
         '''
         returned_json = self.get_certificate()
