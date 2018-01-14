@@ -572,5 +572,5 @@ class RancherService:
 
 if __name__ == "__main__":
     service = RancherService()
-    service.check_hostnames_and_ports()
+    # service.check_hostnames_and_ports()
     service.loop()
