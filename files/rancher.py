@@ -314,18 +314,16 @@ class RancherService:
         # TODO this is incredibly hacky. Certbot is python code so there should be a way to do this without shelling out to the cli certbot tool. (certbot docs suck btw)
         # https://www.metachris.com/2015/12/comparison-of-10-acme-lets-encrypt-clients/#client-simp_le maybe?
         if(STAGING):
-            # proc = subprocess.Popen(["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-d", server, "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default", "--staging"], stdout=subprocess.PIPE)
-            # staging_args = ["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default", "--staging"]
-            staging_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default", "--staging"]
-            staging_args[12:12] = domains_parameters
+            staging_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos", "--staging"]
+            staging_args[13:13] = domains_parameters
+            print "STAGING"
+            print staging_args
             proc = subprocess.Popen(staging_args, stdout=subprocess.PIPE)
         else:
-            # production
-            # proc = subprocess.Popen(["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-d", server, "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"], stdout=subprocess.PIPE)
-            # prod_args = ["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"]
-            # certbot certonly --non-interactive --renew-by-default --standalone --preferred-challenges tls-sni --rsa-key-size 4096 $EMAILPARAM --agree-tos $URLS
-            prod_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"]
+            prod_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos"]
             prod_args[12:12] = domains_parameters
+            print "PRODUCTION"
+            print prod_args
             proc = subprocess.Popen(prod_args, stdout=subprocess.PIPE)
         # wait for the process to return
         com = proc.communicate()[0]
@@ -350,12 +348,12 @@ class RancherService:
         else:
             return False
 
-    def post_cert(self, server):
+    def post_cert(self, domain_element):
         '''
         POST a certificate to the Rancher API.
         '''
         # check if the cert exists in Rancher first.
-        cert_id = self.get_certificate_id(self.get_domain(server))
+        cert_id = self.get_certificate_id(self.get_domain(domain_element))
         if(cert_id is not None):
             # the cert exists in rancher, do PUT to update it
             url = "{0}/projects/{1}/certificates/{2}".format(RANCHER_URL, self.get_project_id(), cert_id)
@@ -365,13 +363,13 @@ class RancherService:
             url = "{0}/projects/{1}/certificate".format(RANCHER_URL, self.get_project_id())
             request_type = requests.post
 
-        if(self.check_cert_files_exist(server)):
+        if(self.check_cert_files_exist(domain_element)):
             json_structure = {}
-            json_structure['certChain'] = self.read_chain(self.get_domain(server))
-            json_structure['cert'] = self.read_cert(self.get_domain(server))
-            json_structure['key'] = self.read_privkey(self.get_domain(server))
+            json_structure['certChain'] = self.read_chain(self.get_domain(domain_element))
+            json_structure['cert'] = self.read_cert(self.get_domain(domain_element))
+            json_structure['key'] = self.read_privkey(self.get_domain(domain_element))
             json_structure['type'] = 'certificate'
-            json_structure['name'] = self.get_domain(server)
+            json_structure['name'] = self.get_domain(domain_element)
             json_structure['created'] = None
             json_structure['description'] = None
             json_structure['kind'] = None
