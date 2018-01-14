@@ -151,35 +151,6 @@ class RancherService:
                 # a cert we dont care about since it doesnt match server cn
                 continue
 
-    def delete_cert(self, server):
-        '''
-        Delete existing cert from the server.
-        '''
-        print "Deleting {0} cert from Rancher API".format(server)
-        url = "{0}/projects/{1]/certificates/{2}".format(RANCHER_URL, self.get_project_id(), self.get_certificate_id(server))
-        done = False
-        while not done:
-            try:
-                r = requests.delete(url=url, auth=self.auth(), timeout=CONNECT_TIMEOUT)
-            except requests.exceptions.ConnectionError as e:
-                print "ERROR: Cannot connect to URL: {0} for method {1}. Full error: {2}".format(url, "delete_cert", str(e))
-                print "ERROR: Trying to reconnect in {0} seconds".format(CONNECT_WAIT)
-                time.sleep(CONNECT_WAIT)
-                continue
-            except requests.exceptions.ConnectTimeout as e:
-                print "ERROR: Cannot connect to URL: {0} for method {1}. Full error: {2}".format(url, "delete_cert", str(e))
-                print "ERROR: Trying to reconnect in {0} seconds".format(CONNECT_WAIT)
-                time.sleep(CONNECT_WAIT)
-                continue
-            # done with exceptions
-            # if we have a valid status code we should be ok
-            if(r.status_code):
-                done = True
-
-        print "INFO: Delete cert status code: {0}".format(r.status_code)
-        print "INFO: Sleeping for two minutes because rancher sucks and takes FOREVER to purge a deleted certificate"
-        time.sleep(120)
-
     def get_certificate_id(self, server):
         '''
         Get Rancher assigned certificate id for a given certificate.
@@ -202,10 +173,6 @@ class RancherService:
             return True
         else:
             return False
-
-    def renew_certificate(self, server):
-        print "INFO: Renewing certificate for {0}".format(server)
-        self.create_cert(server)
 
     def get_domain(self,domain_element):
         return domain_element.split(':')[:1][0]
@@ -294,18 +261,7 @@ class RancherService:
         result += "-d " + domain + " "
         for sub_domain in sub_domains:
             result += "-d " + sub_domain + "." + domain + " "
-        return result
-
-    def get_domains_list(self):
-        result = []
-        servers = self.parse_servernames()
-        for server in servers:
-            domain = self.get_domain(server)
-            result.append(domain)
-            sub_domains = self.get_subdomains(server)
-            for sub_domain in sub_domains:
-                result.append(sub_domain + "." + domain)
-        return result
+        return result.rstrip()
 
     def create_cert(self, domain_element):
         # squeeze domains_parameters after "--text" element
@@ -460,20 +416,6 @@ class RancherService:
             print "ERROR: Could not find file: {0}".format(privkey_file)
             return None
 
-    def read_fullchain(self, domain):
-        '''
-        Read fullchain.pem file from letsencrypt directory.
-        and return the contents as a string
-        '''
-        fullchain_file = "{0}/live/{1}/{2}".format(LETSENCRYPT_ROOTDIR, domain, "fullchain.pem")
-        if(os.path.isfile(fullchain_file)):
-            with open(fullchain_file, 'r') as openfile:
-                fullchain = openfile.read().rstrip('\n')
-            return fullchain
-        else:
-            print "ERROR: Could not find file: {0}".format(fullchain_file)
-            return None
-
     def read_chain(self, domain):
         '''
         Read chain.pem file from letsencrypt directory.
@@ -503,74 +445,6 @@ class RancherService:
                 cns.append(certificate['CN'])
         return cns
 
-    def hostname_resolves(self, host):
-        try:
-            socket.gethostbyname(host)
-            return True
-        except socket.error:
-            return False
-
-    def port_open(self, host, port):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex((host, port))
-        return result is 0
-
-    def check_hostnames_and_ports(self):
-        done = False
-        while not done:
-            # something failed since we are not done
-            print "INFO: Sleeping during host lookups for {0} seconds".format(HOST_CHECK_LOOP_TIME)
-            time.sleep(HOST_CHECK_LOOP_TIME)
-            # make sure all hostnames can be resolved and are listening on open ports
-            for host in self.get_domains_list():
-                if(self.hostname_resolves(host)):
-                    print "INFO: Hostname: {0} resolves".format(host)
-                    if(self.port_open(host, HOST_CHECK_PORT)):
-                        print "\tINFO: Port {0} open on {1}".format(HOST_CHECK_PORT, host)
-                        # check if the /.well-known/acme-challenge/ directory isn't returning a 301 redirect
-                        # this is caused by the rancher load balancer not picking up the lets-encrypt service
-                        # and not directing traffic to it. Instead the redirection service gets the requests and returns
-                        # a 301 redirect. Also, if we get a 503 service unavailable status code there is no lets-encrypt nginx
-                        # container working, and we should continue to wait and NOT requests Let's Encrypt certificates yet.
-                        url = "http://{0}:{1}/.well-known/acme-challenge/".format(host, HOST_CHECK_PORT)
-
-                        # at this point the port is open, but it may not respond with a valid http response
-                        # so we need to check that it returns a valid http response and the connection can be opened
-
-                        valid_http = False
-                        while not valid_http:
-                            try:
-                                r = requests.get(url, allow_redirects=False)
-                            except requests.exceptions.ConnectionError as e:
-                                print "ERROR: Cannot connect to URL: {0} for method {1}. Full error: {2}".format(url, "get_certificate", str(e))
-                                print "ERROR: Trying to reconnect in {0} seconds".format(CONNECT_WAIT)
-                                time.sleep(CONNECT_WAIT)
-                                continue
-                            except requests.exceptions.ConnectTimeout as e:
-                                print "ERROR: Cannot connect to URL: {0} for method {1}. Full error: {2}".format(url, "get_certificate", str(e))
-                                print "ERROR: Trying to reconnect in {0} seconds".format(CONNECT_WAIT)
-                                time.sleep(CONNECT_WAIT)
-                                continue
-                            # done with exceptions
-                            # if we have a valid status code we should be ok
-                            if(r.status_code):
-                                valid_http = True
-
-                        if(r.status_code != 503 and r.status_code != 301):
-                            print "\t\tINFO: OK, got HTTP status code ({0}) for ({1})".format(r.status_code, host)
-                            done = True
-                        else:
-                            print "\t\tINFO: Received bad HTTP status code ({0}) from ({1})".format(r.status_code, host)
-                            done = False
-                    else:
-                        print "INFO: Could not connect to port {0} on host {1}".format(HOST_CHECK_PORT, host)
-                        done = False
-                else:
-                    print "INFO: Could not lookup DNS hostname for {0}".format(host)
-                    done = False
-        print "INFO: Continuing on to letsencrypt cert provisioning since all hosts seem to be up!"
-
 if __name__ == "__main__":
     service = RancherService()
-    # service.check_hostnames_and_ports()
     service.loop()
