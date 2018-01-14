@@ -270,15 +270,15 @@ class RancherService:
         # TODO this is incredibly hacky. Certbot is python code so there should be a way to do this without shelling out to the cli certbot tool. (certbot docs suck btw)
         # https://www.metachris.com/2015/12/comparison-of-10-acme-lets-encrypt-clients/#client-simp_le maybe?
         if(STAGING):
-            staging_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos", "--staging"]
-            staging_args[13:13] = domains_parameters
+            staging_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos", "--staging", "--break-my-certs"]
+            staging_args[12:12] = domains_parameters
             print "STAGING"
             print domains_parameters
             print staging_args
             proc = subprocess.Popen(staging_args, stdout=subprocess.PIPE)
         else:
-            prod_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos"]
-            prod_args[12:12] = domains_parameters
+            prod_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos"]
+            prod_args[10:10] = domains_parameters
             print "PRODUCTION"
             print domains_parameters
             print prod_args
