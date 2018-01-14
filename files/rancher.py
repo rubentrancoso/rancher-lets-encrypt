@@ -317,12 +317,14 @@ class RancherService:
             staging_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos", "--staging"]
             staging_args[13:13] = domains_parameters
             print "STAGING"
+            print domains_parameters
             print staging_args
             proc = subprocess.Popen(staging_args, stdout=subprocess.PIPE)
         else:
             prod_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", "-m", CERTBOT_EMAIL, "--agree-tos"]
             prod_args[12:12] = domains_parameters
             print "PRODUCTION"
+            print domains_parameters
             print prod_args
             proc = subprocess.Popen(prod_args, stdout=subprocess.PIPE)
         # wait for the process to return
@@ -443,12 +445,12 @@ class RancherService:
             print "ERROR: Could not find file: {0}".format(cert_file)
             return None
 
-    def read_privkey(self, server):
+    def read_privkey(self, domain):
         '''
         Read privkey.pem file from letsencrypt directory
         and return the contents as a string
         '''
-        privkey_file = "{0}/live/{1}/{2}".format(LETSENCRYPT_ROOTDIR, server, "privkey.pem")
+        privkey_file = "{0}/live/{1}/{2}".format(LETSENCRYPT_ROOTDIR, domain, "privkey.pem")
         if(os.path.isfile(privkey_file)):
             # read files and post the correct info to populate rancher
             with open(privkey_file, 'r') as openfile:
@@ -458,12 +460,12 @@ class RancherService:
             print "ERROR: Could not find file: {0}".format(privkey_file)
             return None
 
-    def read_fullchain(self, server):
+    def read_fullchain(self, domain):
         '''
         Read fullchain.pem file from letsencrypt directory.
         and return the contents as a string
         '''
-        fullchain_file = "{0}/live/{1}/{2}".format(LETSENCRYPT_ROOTDIR, server, "fullchain.pem")
+        fullchain_file = "{0}/live/{1}/{2}".format(LETSENCRYPT_ROOTDIR, domain, "fullchain.pem")
         if(os.path.isfile(fullchain_file)):
             with open(fullchain_file, 'r') as openfile:
                 fullchain = openfile.read().rstrip('\n')
@@ -472,12 +474,12 @@ class RancherService:
             print "ERROR: Could not find file: {0}".format(fullchain_file)
             return None
 
-    def read_chain(self, server):
+    def read_chain(self, domain):
         '''
         Read chain.pem file from letsencrypt directory.
         and return the contents as a string
         '''
-        chain_file = "{0}/live/{1}/{2}".format(LETSENCRYPT_ROOTDIR, server, "chain.pem")
+        chain_file = "{0}/live/{1}/{2}".format(LETSENCRYPT_ROOTDIR, domain, "chain.pem")
         if(os.path.isfile(chain_file)):
             with open(chain_file, 'r') as openfile:
                 chain = openfile.read().rstrip('\n')
