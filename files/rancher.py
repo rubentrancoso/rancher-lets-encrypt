@@ -325,7 +325,7 @@ class RancherService:
             # prod_args = ["certbot", "certonly", "--webroot", "-w", CERTBOT_WEBROOT, "--text", "-m", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"]
             # certbot certonly --non-interactive --renew-by-default --standalone --preferred-challenges tls-sni --rsa-key-size 4096 $EMAILPARAM --agree-tos $URLS
             prod_args = ["certbot", "certonly", "--non-interactive", "--renew-by-default", "--standalone", "--preferred-challenges", "tls-sni", "--rsa-key-size", "4096", CERTBOT_EMAIL, "--agree-tos", "--renew-by-default"]
-            staging_args[12:12] = domains_parameters
+            prod_args[12:12] = domains_parameters
             proc = subprocess.Popen(prod_args, stdout=subprocess.PIPE)
         # wait for the process to return
         com = proc.communicate()[0]
